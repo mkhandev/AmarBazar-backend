@@ -12,9 +12,9 @@ class CategorySeeder extends Seeder
     public function run(): void
     {
         // Create 5 main categories
-        $parents = Category::factory(5)->create();
+        $parents = Category::factory(8)->create();
 
-        // For each parent, create 3 subcategories
+        // For each parent, create 1 subcategories
         $parents->each(function ($parent) {
             Category::factory(1)->create([
                 'parent_id' => $parent->id,
