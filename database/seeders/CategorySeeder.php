@@ -11,7 +11,7 @@ class CategorySeeder extends Seeder
      */
     public function run(): void
     {
-        // Create 5 main categories
+        // Create 8 main categories
         $parents = Category::factory(8)->create();
 
         // For each parent, create 1 subcategories
