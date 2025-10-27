@@ -17,16 +17,22 @@ class CategoryFactory extends Factory
     public function definition(): array
     {
         $categories = [
-            'Electronics',
-            'Books',
-            'Clothing',
-            'Home & Kitchen',
-            'Sports & Outdoors',
-            'Toys & Games',
-            'Health & Beauty',
-            'Automotive',
-            'Garden',
-            'Computers',
+            'Gas Stove Parts & Accessories',
+            'Trunks & Boxers',
+            'Gas Stoves',
+            'Cooktops & Ranges',
+            'Music & Sound',
+            'Natural Sweeteners',
+            'Hoses & Pipes',
+            'Cheese Tools',
+            'Kitchen Fittings',
+            'Womens Fashion',
+            'Ovens',
+            'Goat',
+            'Watches and Accessories',
+            'Watering Systems & Garden Hoses',
+            'Pools',
+            'Gimbals & Stabilizers',
         ];
 
         $name = $this->faker->unique()->randomElement($categories);
