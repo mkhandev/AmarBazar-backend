@@ -29,4 +29,9 @@ class Product extends Model
     {
         return $this->hasOne(ProductImage::class)->where('is_main', true);
     }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
 }
