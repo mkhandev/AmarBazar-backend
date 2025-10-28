@@ -1,6 +1,7 @@
 <?php
 namespace Database\Factories;
 
+use App\Models\Category;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -28,14 +29,28 @@ class CategoryFactory extends Factory
             'Kitchen Fittings',
             'Womens Fashion',
             'Ovens',
-            'Goat',
+            'Dry Nags',
             'Watches and Accessories',
             'Watering Systems & Garden Hoses',
             'Pools',
             'Gimbals & Stabilizers',
+            'Refrigerators & Freezers',
+            'Air Conditioners',
+            'Washing Machines & Dryers',
+            'Small Kitchen Appliances',
         ];
 
         $name = $this->faker->unique()->randomElement($categories);
+
+        $slug = Str::slug($name);
+
+        // Ensure slug is unique in DB
+        $counter  = 1;
+        $baseSlug = $slug;
+        while (Category::where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $counter;
+            $counter++;
+        }
 
         //$name = $this->faker->unique()->word();
 
@@ -47,7 +62,8 @@ class CategoryFactory extends Factory
 
         return [
             'name'        => ucfirst($name),
-            'slug'        => Str::slug($name),
+            //'slug'        => Str::slug($name),
+            'slug'        => $slug,
             'description' => $this->faker->sentence(),
             //'image'       => $this->faker->imageUrl(640, 480, 'categories', true),
             'image'       => "https://placehold.co/600x400/{$bgColor}/ffffff?text={$text}",
