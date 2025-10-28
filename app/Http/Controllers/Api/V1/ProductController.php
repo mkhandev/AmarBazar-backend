@@ -13,8 +13,8 @@ class ProductController extends Controller
     public function index(): JsonResponse
     {
         $products = Product::with(['category', 'user', 'images', 'reviews'])
-            ->latest()
-            ->paginate(10);
+            ->orderBy('id', 'desc')
+            ->paginate(14);
 
         return response()->json($products);
     }
