@@ -12,7 +12,7 @@ class ProductController extends Controller
 {
     public function index(): JsonResponse
     {
-        $products = Product::with(['category', 'user', 'images'])
+        $products = Product::with(['category', 'user', 'images', 'reviews'])
             ->latest()
             ->paginate(10);
 
