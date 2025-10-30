@@ -6,15 +6,25 @@ use App\Http\Requests\Api\StoreProductRequest;
 use App\Http\Requests\Api\UpdateProductRequest;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $products = Product::with(['category', 'user', 'images', 'reviews'])
-            ->orderBy('id', 'desc')
-            ->paginate(14);
+        $query = Product::with(['category', 'user', 'images', 'reviews'])
+            ->orderBy('id', 'desc');
+
+        if ($request->filled('category')) {
+            $query->where('category_id', $request->category);
+        }
+
+        if ($request->filled('q')) {
+            $query->where('name', 'like', '%' . $request->q . '%');
+        }
+
+        $products = $query->paginate(15);
 
         return response()->json($products);
     }
