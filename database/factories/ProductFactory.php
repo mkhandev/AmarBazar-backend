@@ -22,7 +22,7 @@ class ProductFactory extends Factory
         $users      = User::pluck('id')->toArray();
 
         if (empty($categories) || empty($users)) {
-            throw new \Exception('⚠️ Please seed categories and users first.');
+            throw new \Exception('Please seed categories and users first.');
         }
 
         $name = $this->faker->unique()->words(3, true);
