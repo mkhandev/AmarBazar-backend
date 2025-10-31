@@ -13,18 +13,71 @@ class ProductController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Product::with(['category', 'user', 'images', 'reviews'])
-            ->orderBy('id', 'desc');
+        $query = Product::with(['category', 'user', 'images', 'reviews']);
+        //$query = Product::query();
 
-        if ($request->filled('category')) {
+        if ($request->filled('category') && $request->category != 'all') {
             $query->where('category_id', $request->category);
         }
 
-        if ($request->filled('q')) {
+        if ($request->filled('q') && $request->q != 'all') {
             $query->where('name', 'like', '%' . $request->q . '%');
         }
 
+        if ($request->filled('price') && $request->price != 'all') {
+            $priceRange = explode('-', $request->price);
+
+            if (count($priceRange) === 2) {
+                $min = (float) $priceRange[0];
+                $max = (float) $priceRange[1];
+                $query->whereBetween('price', [$min, $max]);
+            } elseif (count($priceRange) === 1) {
+                $min = (float) rtrim($priceRange[0], '+');
+                $query->where('price', '>=', $min);
+            }
+        }
+
+        if ($request->filled('rating') && $request->rating !== 'all') {
+            // $query->whereHas('reviews', function ($q) use ($request) {
+            //     $q->selectRaw('avg(rating) as avg_rating')
+            //         ->groupBy('product_id');
+            // });
+
+            // simpler version if `reviews` relation has `rating` field:
+            // $query->whereHas('reviews', function ($q) use ($request) {
+            //     $q->where('rating', '>=', (int) $request->rating);
+            // });
+
+            $query->where('rating', '>=', (float) $request->rating);
+        }
+
+        if ($request->filled('sortby')) {
+            switch ($request->sortby) {
+                case 'price-low':
+                    $query->orderBy('price', 'asc');
+                    break;
+                case 'price-high':
+                    $query->orderBy('price', 'desc');
+                    break;
+                case 'rating-low':
+                    $query->orderBy('rating', 'asc');
+                    break;
+                case 'rating-high':
+                    $query->orderBy('rating', 'desc');
+                    break;
+                case 'latest':
+                    $query->orderBy('id', 'desc');
+                    break;
+                default:
+                    $query->orderBy('id', 'desc');
+                    break;
+            }
+        } else {
+            $query->orderBy('id', 'desc');
+        }
+
         $products = $query->paginate(15);
+        //$products = $query->take(5)->get();
 
         return response()->json($products);
     }
