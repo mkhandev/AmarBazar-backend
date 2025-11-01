@@ -82,6 +82,26 @@ class ProductController extends Controller
         return response()->json($products);
     }
 
+    public function show($id): JsonResponse
+    {
+        // Fetch product with related data
+        $product = Product::with(['category', 'user', 'images', 'reviews'])->find($id);
+
+        if (! $product) {
+            return response()->json([
+                'message' => 'Product not found',
+            ], 404);
+        }
+
+        $response = [
+            'success' => true,
+            'message' => "Product details",
+            'data'    => $product,
+        ];
+
+        return response()->json($response);
+    }
+
     public function store(StoreProductRequest $request): JsonResponse
     {
         DB::beginTransaction();
@@ -152,4 +172,5 @@ class ProductController extends Controller
             'message' => 'Product deleted successfully',
         ]);
     }
+
 }
