@@ -82,11 +82,13 @@ class ProductController extends Controller
         return response()->json($products);
     }
 
-    public function show($slug): JsonResponse
+    public function show($idOrSlug): JsonResponse
     {
-        // Fetch product with related data
-        $product = Product::with(['category', 'user', 'images', 'reviews'])
-            ->where('slug', $slug)
+        // echo $idOrSlug;
+        // exit;
+        $product = Product::with(['category', 'user', 'images', 'reviews', 'reviews.user'])
+            ->where('id', $idOrSlug)
+            ->orWhere('slug', $idOrSlug)
             ->first();
 
         if (! $product) {
