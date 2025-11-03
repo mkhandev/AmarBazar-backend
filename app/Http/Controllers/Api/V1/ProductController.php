@@ -177,4 +177,14 @@ class ProductController extends Controller
         ]);
     }
 
+    public function authCheck()
+    {
+        $response = [
+            'success' => true,
+            'message' => "Successfully you can access",
+        ];
+
+        return response()->json($response);
+    }
+
 }
