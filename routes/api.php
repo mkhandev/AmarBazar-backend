@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CartController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\ProductController;
 use Illuminate\Http\Request;
@@ -18,7 +19,9 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('jwt')->group(function () {
         Route::get('/auth-check', [ProductController::class, 'authCheck']);
-    });
 
-    //Route::get('/auth-check', [ProductController::class, 'authCheck']);
+        Route::get('/cart', [CartController::class, 'index']);
+        Route::post('/cart', [CartController::class, 'store']);
+        Route::delete('/cart/{id}', [CartController::class, 'destroy']);
+    });
 });
