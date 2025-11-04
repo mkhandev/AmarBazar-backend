@@ -18,7 +18,7 @@ return new class extends Migration
                 ->constrained('users')
                 ->onDelete('cascade');
             $table->string('session_cart_id')->nullable();
-            $table->foreignId('product_id')->constrained()->onDelete('cascade');
+            $table->foreignId('product_id')->constrained('products')->onDelete('cascade');
             $table->unsignedInteger('quantity')->default(1);
             $table->decimal('shipping_price', 10, 2)->nullable();
             $table->decimal('tax_price', 10, 2)->nullable();

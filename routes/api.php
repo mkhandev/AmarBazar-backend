@@ -17,11 +17,13 @@ Route::prefix('v1')->group(function () {
 
     Route::post('/login', [AuthController::class, 'login']);
 
+    Route::get('/cart', [CartController::class, 'index']);
+    Route::post('/cart', [CartController::class, 'store']);
+    Route::patch('/cart/update', [CartController::class, 'updateByProduct']);
+    Route::delete('/cart/{id}', [CartController::class, 'destroy']);
+
     Route::middleware('jwt')->group(function () {
         Route::get('/auth-check', [ProductController::class, 'authCheck']);
-
-        Route::get('/cart', [CartController::class, 'index']);
-        Route::post('/cart', [CartController::class, 'store']);
-        Route::delete('/cart/{id}', [CartController::class, 'destroy']);
     });
+
 });
