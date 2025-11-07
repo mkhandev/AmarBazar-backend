@@ -11,7 +11,16 @@ class CategoryController extends Controller
 {
     public function index()
     {
-        $categories = Category::all();
+        $imagePath = config('custom.image_path');
+
+        $categories = Category::all()->map(function ($category) use ($imagePath) {
+
+            $category->image = $category->image
+                ? $imagePath . '/' . ltrim($category->image, '/')
+                : null; // or a default image path
+
+            return $category;
+        });
         return response()->json($categories);
     }
 
