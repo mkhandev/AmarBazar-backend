@@ -13,14 +13,7 @@ class CategoryController extends Controller
     {
         $imagePath = config('custom.image_path');
 
-        $categories = Category::all()->map(function ($category) use ($imagePath) {
-
-            $category->image = $category->image
-                ? $imagePath . '/' . ltrim($category->image, '/')
-                : null; // or a default image path
-
-            return $category;
-        });
+        $categories = Category::all();
         return response()->json($categories);
     }
 

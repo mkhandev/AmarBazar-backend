@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -77,5 +78,24 @@ class AuthController extends Controller
             'token' => $token,
             'user'  => $user,
         ], 201);
+    }
+
+    public function loginUserDetails(): JsonResponse
+    {
+        $user = Auth::user();
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        $response = [
+            'success' => true,
+            'message' => "User details",
+            'data'    => $user,
+        ];
+
+        return response()->json($response);
     }
 }
