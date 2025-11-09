@@ -19,4 +19,17 @@ class Category extends Model
     {
         return $this->hasMany(Category::class, 'parent_id');
     }
+
+    public function getImageAttribute($value)
+    {
+        $imagePath = config('custom.image_path');
+
+        if (str_starts_with($value, 'http')) {
+            return $value;
+        }
+
+        return $value
+            ? $imagePath . '/' . ltrim($value, '/')
+            : null;
+    }
 }

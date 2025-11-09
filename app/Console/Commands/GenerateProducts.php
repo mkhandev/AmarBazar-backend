@@ -81,9 +81,9 @@ class GenerateProducts extends Command
         $users      = User::pluck('id')->toArray();
         $faker      = Faker::create();
 
-        DB::beginTransaction();
-
         foreach ($generateProduct as $productName) {
+
+            DB::beginTransaction();
 
             $exists = Product::where('name', $productName)
                 ->where('category_id', $categoryId)

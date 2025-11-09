@@ -14,4 +14,17 @@ class ProductImage extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    public function getImageAttribute($value)
+    {
+        $imagePath = config('custom.image_path');
+
+        if (str_starts_with($value, 'http')) {
+            return $value;
+        }
+
+        return $value
+            ? $imagePath . '/' . ltrim($value, '/')
+            : null;
+    }
 }

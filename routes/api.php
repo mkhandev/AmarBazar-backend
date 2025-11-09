@@ -16,16 +16,21 @@ Route::prefix('v1')->group(function () {
     Route::apiResource('products', ProductController::class);
 
     Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/logout', [AuthController::class, 'logout']);
 
     //Route::get('/cart', [CartController::class, 'index']);
     Route::get('/cart/{session_cart_id}/{user_id?}', [CartController::class, 'show']);
     Route::get('/cart/{session_cart_id}', [CartController::class, 'show']);
     Route::post('/cart', [CartController::class, 'store']);
     Route::patch('/cart/update', [CartController::class, 'updateByProduct']);
+
     Route::delete('/cart/{id}/{session_cart_id}', [CartController::class, 'destroy']);
 
     Route::middleware('jwt')->group(function () {
+        Route::patch('/cart/update-user', [CartController::class, 'updateUser']);
+        Route::patch('/cart/shipping', [CartController::class, 'updateShipping']);
         Route::get('/auth-check', [ProductController::class, 'authCheck']);
-    });
 
+        Route::get('/user', [AuthController::class, 'loginUserDetails']);
+    });
 });

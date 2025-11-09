@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -44,7 +45,7 @@ class CartController extends Controller
 
         $cart = $query->get();
 
-        if (! $cart) {
+        if ($cart->isEmpty()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Cart not found',
@@ -53,10 +54,9 @@ class CartController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => "Cart details",
+            'message' => 'Cart details',
             'data'    => $cart,
         ], 200);
-
     }
 
     public function store(Request $request)
@@ -86,6 +86,7 @@ class CartController extends Controller
 
         $cartData = [
             'session_cart_id' => $request->session_cart_id,
+            'user_id'         => $request->user_id ?? null,
             'product_id'      => $product->id,
             'quantity'        => $quantity,
             'item_price'      => $item_price,
@@ -184,6 +185,24 @@ class CartController extends Controller
         return response()->json($cartItem);
     }
 
+    public function updateUser(Request $request)
+    {
+        $request->validate([
+            'session_cart_id' => 'required|string',
+            'user_id'         => 'required|integer|exists:users,id',
+        ]);
+
+        Cart::where('session_cart_id', $request->session_cart_id)
+            ->update([
+                'user_id' => $request->user_id,
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cart updated with user ID.',
+        ]);
+    }
+
     public function destroy($id, $session_cart_id)
     {
         $cart = Cart::where('id', $id)
@@ -203,6 +222,47 @@ class CartController extends Controller
             'success' => true,
             'message' => 'Item removed from cart',
         ], 200);
+    }
+
+    public function updateShipping(Request $request)
+    {
+        $request->validate([
+            'name'           => 'required|string|max:255',
+            'phone'          => 'nullable|string|max:20',
+            'address'        => 'required|string|max:500',
+            'city'           => 'required|string|max:100',
+            'postal_code'    => 'required|string|max:20',
+            'country'        => 'required|string|max:100',
+            'country'        => 'required|string|max:100',
+            'payment_method' => 'required|in:CashOnDelivery,Stripe',
+        ]);
+
+        $cart = Cart::where('user_id', Auth::id())->first();
+
+        if (! $cart) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cart not found',
+            ], 404);
+        }
+
+        $user = User::find(Auth::id());
+
+        $user->name           = $request->name;
+        $user->phone          = $request->phone;
+        $user->address        = $request->address;
+        $user->city           = $request->city;
+        $user->postal_code    = $request->postal_code;
+        $user->country        = $request->country;
+        $user->payment_method = $request->payment_method;
+
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Shipping info updated successfully',
+            'data'    => $user,
+        ]);
     }
 
 }
