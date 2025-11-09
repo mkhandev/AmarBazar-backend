@@ -76,20 +76,7 @@ class ProductController extends Controller
             $query->orderBy('id', 'desc');
         }
 
-        //$products = $query->paginate(15);
-        $products = $query->orderBy('id', 'desc')->paginate(15);
-
-        $imagePath = config('custom.image_path');
-
-        $products->getCollection()->transform(function ($product) use ($imagePath) {
-            if ($product->images && count($product->images) > 0) {
-                foreach ($product->images as $image) {
-                    // Adjust column name if not `image`
-                    $image->image = $imagePath . '/' . ltrim($image->image, '/');
-                }
-            }
-            return $product;
-        });
+        $products = $query->paginate(15);
 
         return response()->json($products);
     }
@@ -105,15 +92,6 @@ class ProductController extends Controller
             return response()->json([
                 'message' => 'Product not found',
             ], 404);
-        }
-
-        $imagePath = config('custom.image_path');
-
-        if ($product->images && $product->images->count() > 0) {
-            foreach ($product->images as $image) {
-                // prepend image path
-                $image->image = $imagePath . '/' . ltrim($image->image, '/');
-            }
         }
 
         $response = [
