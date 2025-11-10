@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('city')->nullable()->after('address');
             $table->string('postal_code')->nullable()->after('city');
             $table->string('country')->nullable()->after('postal_code');
-            $table->enum('payment_method', ['CashOnDelivery', 'Stripe'])
+            $table->enum('payment_method', ['cod', 'stripe'])
                 ->nullable()
                 ->after('country');
         });

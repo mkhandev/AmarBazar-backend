@@ -19,6 +19,8 @@ return new class extends Migration
                 ->constrained('users')
                 ->onDelete('set null');
 
+            $table->string('order_number')->unique();
+
             $table->decimal('total_amount', 10, 2)
                 ->default(0)
                 ->comment('sum(order_items.sub_total) without shipping and tax');
