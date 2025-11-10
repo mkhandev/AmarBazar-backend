@@ -2,7 +2,6 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\StoreOrderRequest;
 use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -29,77 +28,86 @@ class OrderController extends Controller
         ]);
     }
 
-    public function placeOrder()
+    public function store(Request $request)
     {
-        $user = Auth::user();
-        $cart = Cart::where('user_id', $user->id)->get();
+        $request->validate([
+            'cart_id'         => 'required|integer|exists:carts,id',
+            'session_cart_id' => 'required|string',
+            'user_id'         => 'required|integer|exists:users,id',
+        ]);
 
-        if ($cart->isEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cart is empty',
-            ], 400);
+        $cart = Cart::with('items.product')
+            ->where('id', $request->cart_id)
+            ->where('user_id', $request->user_id)
+            ->where('session_cart_id', $request->session_cart_id)
+            ->first();
+
+        if (! $cart || $cart->items->isEmpty()) {
+            return response()->json(['message' => 'Cart is empty or invalid'], 400);
         }
 
-        //$userInfo = User::where('id', $user->id)->get();
-        $shippingInfo = $user->only(['name', 'phone', 'address', 'city', 'postal_code', 'country', 'payment_method']);
+        $userInfo = User::where('id', $request->user_id)->first();
 
-        // echo "<pre>";
-        // print_r($shippingInfo);
-        // exit;
+        DB::beginTransaction();
+        try {
+            // Calculate totals
+            $total_amount = $cart->items->sum(function ($item) {
+                return $item->product->price * $item->quantity;
+            });
 
-        $shippingFee = config('constants.shipping_fee', 50);
-        $tax         = config('constants.tax', 0);
+            $shippingFee = config('custom.shipping_fee', 50);
+            $tax         = config('custom.tax', 0);
 
-        $subtotal    = $cart->sum(fn($item) => $item->item_price * $item->quantity);
-        $shippingFee = $shippingFee;
-        $tax         = $tax;
-        $total       = $subtotal + $shippingFee + $tax;
-
-    }
-
-    /**
-     * Create an order
-     */
-    //public function store(StoreOrderRequest $request)
-    public function store(StoreOrderRequest $request)
-    {
-        $data = $request->validated();
-
-        return DB::transaction(function () use ($data, $request) {
+            $grandTotal = $total_amount + $shippingFee + $tax;
 
             $order = Order::create([
-                'user_id'        => $request->user()->id,
-                'order_number'   => Order::generateOrderNumber(),
-                'address'        => $data['address'],
-                'city'           => $data['city'] ?? null,
-                'postal_code'    => $data['postal_code'] ?? null,
-                'country'        => $data['country'] ?? null,
+                'user_id'              => $request->user_id,
+                'order_number'         => Order::generateOrderNumber(),
+                'total_amount'         => $total_amount,
+                'shipping_fee'         => $shippingFee,
+                'tax_amount'           => $tax,
+                'grand_total'          => $grandTotal,
+                'status'               => 'pending',
 
-                'payment_method' => $data['payment_method'],
+                'shipping_name'        => $userInfo->name,
+                'shipping_phone'       => $userInfo->phone,
+                'shipping_address'     => $userInfo->address,
+                'shipping_city'        => $userInfo->city,
+                'shipping_postal_code' => $userInfo->postal_code,
+                'shipping_country'     => $userInfo->country,
+                'payment_method'       => $userInfo->payment_method,
 
-                'shipping_price' => $data['shipping_price'] ?? 0,
-                'tax_price'      => $data['tax_price'] ?? 0,
-                'item_price'     => $data['item_price'],
-                'total_price'    => $data['total_price'],
+                'payment_status'       => 'pending',
+
             ]);
 
-            // Insert order items
-            foreach ($data['items'] as $item) {
+            // Create order items
+            foreach ($cart->items as $item) {
                 OrderItem::create([
                     'order_id'   => $order->id,
-                    'product_id' => $item['product_id'],
-                    'quantity'   => $item['quantity'],
-                    'price'      => $item['price'],
+                    'product_id' => $item->product_id,
+                    'quantity'   => $item->quantity,
+                    'unit_price' => $item->product->price,
+                    'sub_total'  => $item->product->price * $item->product->price,
                 ]);
             }
 
+            // Clear cart (optional)
+            $cart->items()->delete();
+            $cart->delete();
+
+            DB::commit();
+
             return response()->json([
                 'success' => true,
-                'message' => 'Order placed successfully.',
-                'data'    => $order->load('items'),
-            ], 201);
-        });
+                'message' => 'Order placed successfully',
+                'data'    => $order,
+
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
     }
 
     /**

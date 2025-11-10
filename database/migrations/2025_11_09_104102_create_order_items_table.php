@@ -22,9 +22,10 @@ return new class extends Migration
                 ->constrained('products')
                 ->onDelete('cascade');
 
-            $table->unsignedInteger('quantity')->default(1);
-
-            $table->decimal('price', 10, 2)->default(0);
+            $table->integer('quantity')->default(1);
+            $table->decimal('unit_price', 10, 2)->comment('products.price (snapshot of product price)');
+            $table->decimal('sub_total', 10, 2)
+                ->comment('unit_price * quantity');
 
             $table->timestamps();
         });
