@@ -15,26 +15,33 @@ return new class extends Migration
             $table->id();
 
             $table->foreignId('user_id')
+                ->nullable()
                 ->constrained('users')
-                ->onDelete('cascade');
+                ->onDelete('set null');
 
             $table->string('order_number')->unique();
-            $table->text('address');
-            $table->string('city')->nullable();
-            $table->string('postal_code')->nullable();
-            $table->string('country')->nullable();
-            $table->enum('payment_method', ['CashOnDelivery', 'Stripe']);
 
-            $table->decimal('shipping_price', 10, 2)->nullable();
-            $table->decimal('tax_price', 10, 2)->nullable();
-            $table->decimal('item_price', 10, 2);
-            $table->decimal('total_price', 10, 2);
+            $table->decimal('total_amount', 10, 2)
+                ->default(0)
+                ->comment('sum(order_items.sub_total) without shipping and tax');
 
-            $table->boolean('is_paid')->default(false);
-            $table->timestamp('paid_at')->nullable();
+            $table->decimal('shipping_fee', 10, 2)->default(0);
+            $table->decimal('tax_amount', 10, 2)->default(0);
+            $table->decimal('grand_total', 10, 2)
+                ->default(0)
+                ->comment('total_amount + shipping_fee + tax_amount - discount_amount');
 
-            $table->boolean('is_delivered')->default(false);
-            $table->timestamp('delivered_at')->nullable();
+            $table->enum('status', ['pending', 'processing', 'completed', 'cancelled'])->default('pending');
+
+            $table->string('shipping_name')->nullable();
+            $table->string('shipping_phone')->nullable();
+            $table->text('shipping_address')->nullable();
+            $table->string('shipping_city')->nullable();
+            $table->string('shipping_postal_code')->nullable();
+            $table->string('shipping_country')->nullable();
+
+            $table->enum('payment_method', ['cod', 'stripe'])->default('cod');
+            $table->enum('payment_status', ['pending', 'paid', 'failed'])->default('pending');
 
             $table->timestamps();
         });

@@ -3,229 +3,177 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
-use App\Models\Product;
+use App\Models\CartItem;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class CartController extends Controller
 {
-    public function index(Request $request)
+
+    public function show(Request $request, $session_cart_id)
     {
-        $query = Cart::with('product');
+        $cart = Cart::with(['items.product.images'])->where('session_cart_id', $session_cart_id)->first();
 
-        if (auth('api')->check()) {
-            $user = auth('api')->user();
-
-            $query->where('user_id', $user->id());
-        } elseif ($request->session_cart_id) {
-            $query->where('session_cart_id', $request->session_cart_id);
-        } else {
-            return response()->json(['message' => 'Cart not found'], 404);
-        }
-
-        $cartItems = $query->get();
-
-        return response()->json([
-            'success' => true,
-            'message' => "Cart details",
-            'data'    => $cartItems,
-        ]);
-
-    }
-
-    public function show($session_cart_id, $user_id = null)
-    {
-        $query = Cart::where('session_cart_id', $session_cart_id)
-            ->with(['product', 'product.images']);
-
-        if ($user_id) {
-            $query->where('user_id', $user_id);
-        }
-
-        $cart = $query->get();
-
-        if ($cart->isEmpty()) {
+        if (! $cart) {
             return response()->json([
-                'success' => false,
-                'message' => 'Cart not found',
+                'message' => 'Cart not found.',
             ], 404);
         }
 
+        if (auth('api')->check()) {
+            $user          = auth('api')->user();
+            $cart->user_id = $user->id;
+            $cart->save();
+        }
+
         return response()->json([
             'success' => true,
-            'message' => 'Cart details',
+            'message' => 'Cart retrieved successfully.',
             'data'    => $cart,
-        ], 200);
+        ]);
     }
 
     public function store(Request $request)
     {
         $request->validate([
             'product_id'      => 'required|exists:products,id',
-            'quantity'        => 'required|integer|min:1',
+            'quantity'        => 'required|integer|min:1|max:5',
             'session_cart_id' => 'required|string',
-            'shipping_price'  => 'nullable|numeric|min:0',
-            'tax_price'       => 'nullable|numeric|min:0',
         ]);
 
-        $product  = Product::findOrFail($request->product_id);
-        $quantity = $request->quantity ?? 1;
+        $cart = $this->getCart($request);
 
-        if ($quantity > 5) {
-            return response()->json([
-                'message' => 'You can only add up to 5 units of this product.',
-            ], 422);
-        }
+        $item = CartItem::where('cart_id', $cart->id)
+            ->where('product_id', $request->product_id)
+            ->first();
 
-        // Default calculations — you can change this logic
-        $item_price     = $product->price;
-        $shipping_price = config('constants.shipping_fee', 50);
-        $tax_price      = config('constants.tax', 0);
-        //$tax_price      = $request->tax_price ?? ($item_price * $quantity * 0.1); //10% tax
+        if ($item) {
 
-        $cartData = [
-            'session_cart_id' => $request->session_cart_id,
-            'user_id'         => $request->user_id ?? null,
-            'product_id'      => $product->id,
-            'quantity'        => $quantity,
-            'shipping_price'  => $shipping_price,
-            'tax_price'       => $tax_price,
-            'item_price'      => ($product->price * $quantity),
-            'total_price'     => ($product->price * $quantity) + $shipping_price + $tax_price,
-        ];
-
-        if (auth('api')->check()) {
-            $user                = auth('api')->user();
-            $cartData['user_id'] = $user->id;
-
-            $existing = Cart::where('user_id', $user->id)
-                ->where('product_id', $product->id)
-                ->first();
-        } else {
-            $existing = Cart::where('session_cart_id', $request->session_cart_id)
-                ->where('product_id', $product->id)
-                ->first();
-        }
-
-        if ($existing) {
-
-            $newQuantity = $quantity;
-
-            if ($newQuantity > 5) {
+            if (($item->quantity + $request->quantity) > 5) {
                 return response()->json([
+                    'success' => false,
                     'message' => 'You can only add up to 5 units of this product.',
                 ], 422);
             }
 
-            $existing->quantity       = $quantity;
-            $existing->tax_price      = $tax_price;
-            $existing->shipping_price = $shipping_price;
-            $existing->item_price     = ($product->price * $quantity);
-            $existing->total_price    = ($product->price * $quantity) + $shipping_price + $tax_price;
-            $existing->save();
-
-            return response()->json(['message' => 'Cart updated', 'cart' => $existing]);
-        }
-
-        $cart = Cart::create($cartData);
-
-        return response()->json(['message' => 'Item added to cart', 'cart' => $cart]);
-    }
-
-    public function updateByProduct(Request $request)
-    {
-        $request->validate([
-            'product_id'     => 'required|exists:products,id',
-            'quantity'       => 'required|integer|min:1',
-            'shipping_price' => 'nullable|numeric|min:0',
-            'tax_price'      => 'nullable|numeric|min:0',
-
-        ]);
-
-        $userId = "";
-        if (auth('api')->check()) {
-            $user   = auth('api')->user();
-            $userId = $user->id;
-        }
-        //$userId    = $request->user()?->id;
-        $sessionId = $request->session_cart_id;
-
-        // Fetch the product price from the database
-        $product   = Product::findOrFail($request->product_id);
-        $itemPrice = $product->price;
-
-        // Find cart item
-        $cartItem = Cart::where('product_id', $request->product_id)
-            ->when($userId, fn($query) => $query->where('user_id', $userId))
-            ->when(! $userId && $sessionId, fn($query) => $query->where('session_cart_id', $sessionId))
-            ->firstOrFail();
-
-        $shipping_price = config('constants.shipping_fee', 50);
-        $tax_price      = config('constants.tax', 0);
-
-        // Update quantity if sent, else keep existing
-        $newQuantity = $request->quantity;
-
-        if ($newQuantity > 5) {
-            return response()->json([
-                'message' => 'You can only have up to 5 units of this product in your cart.',
-            ], 422);
-        }
-
-        $cartItem->quantity = $newQuantity;
-
-        // Update price fields
-        $cartItem->item_price = $shipping_price;
-        $cartItem->tax_price  = $tax_price;
-        $cartItem->item_price = ($product->price * $request->quantity);
-
-        // Recalculate total price
-        $cartItem->total_price = ($product->price * $newQuantity) + $shipping_price + $tax_price;
-
-        $cartItem->save();
-
-        return response()->json($cartItem);
-    }
-
-    //Login time user_id update
-    public function updateUser(Request $request)
-    {
-        $request->validate([
-            'session_cart_id' => 'required|string',
-            'user_id'         => 'required|integer|exists:users,id',
-        ]);
-
-        Cart::where('session_cart_id', $request->session_cart_id)
-            ->update([
-                'user_id' => $request->user_id,
+            $item->update([
+                'quantity' => $item->quantity + $request->quantity,
             ]);
+
+        } else {
+            $item = CartItem::create([
+                'cart_id'    => $cart->id,
+                'product_id' => $request->product_id,
+                'quantity'   => $request->quantity,
+            ]);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Cart updated with user ID.',
+            'message' => 'Item added to cart',
+            'data'    => $item->load('product'),
         ]);
     }
 
-    public function destroy($id, $session_cart_id)
+    private function getCart(Request $request)
     {
-        $cart = Cart::where('id', $id)
-            ->where('session_cart_id', $session_cart_id)
-            ->first();
+        $cart = Cart::where('session_cart_id', $request->session_cart_id)->first();
+
+        if ($cart && $request->filled('user_id') && ! $cart->user_id) {
+            $cart->user_id = $request->user_id;
+            $cart->save();
+        }
+
+        if (! $cart) {
+            $cart = Cart::create([
+                'session_cart_id' => $request->session_cart_id,
+                'user_id'         => $request->user_id ?? null,
+            ]);
+        }
+
+        return $cart;
+    }
+
+    public function update(Request $request, $session_cart_id, $item_id)
+    {
+        $request->validate([
+            'quantity' => 'required|integer|min:1|max:5',
+            'user_id'  => 'nullable|exists:users,id',
+        ]);
+
+        $cart = Cart::where('session_cart_id', $session_cart_id)->first();
 
         if (! $cart) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cart item not found or does not belong to this session.',
+                'message' => 'Cart not found.',
             ], 404);
         }
 
-        $cart->delete();
+        if ($request->filled('user_id') && ! $cart->user_id) {
+            $cart->user_id = $request->user_id;
+            $cart->save();
+        }
+
+        $item = CartItem::where('cart_id', $cart->id)
+            ->where('id', $request->item_id)
+            ->first();
+
+        if (! $item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cart item not found.',
+            ], 404);
+        }
+
+        if (($request->quantity) > 5) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You can only add up to 5 units of this product.',
+            ], 422);
+        }
+
+        $item->update([
+            'quantity' => $request->quantity,
+        ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Item removed from cart',
-        ], 200);
+            'message' => 'Cart item updated successfully.',
+            'data'    => $item->load('product'),
+        ]);
+    }
+
+    public function destroy($session_cart_id, $item_id)
+    {
+        // 1. Find the cart
+        $cart = Cart::where('session_cart_id', $session_cart_id)->first();
+
+        if (! $cart) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cart not found.',
+            ], 404);
+        }
+
+        $item = CartItem::where('cart_id', $cart->id)
+            ->where('id', $item_id)
+            ->first();
+
+        if (! $item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cart item not found.',
+            ], 404);
+        }
+
+        $item->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cart item deleted successfully.',
+        ]);
     }
 
     public function updateShipping(Request $request)
@@ -238,7 +186,7 @@ class CartController extends Controller
             'postal_code'    => 'required|string|max:20',
             'country'        => 'required|string|max:100',
             'country'        => 'required|string|max:100',
-            'payment_method' => 'required|in:CashOnDelivery,Stripe',
+            'payment_method' => 'required|in:cod,stripe',
         ]);
 
         $cart = Cart::where('user_id', Auth::id())->first();
@@ -269,4 +217,22 @@ class CartController extends Controller
         ]);
     }
 
+    //Login time user_id update
+    public function updateUser(Request $request)
+    {
+        $request->validate([
+            'session_cart_id' => 'required|string',
+            'user_id'         => 'required|integer|exists:users,id',
+        ]);
+
+        Cart::where('session_cart_id', $request->session_cart_id)
+            ->update([
+                'user_id' => $request->user_id,
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cart updated with user ID.',
+        ]);
+    }
 }

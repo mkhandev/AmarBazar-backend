@@ -8,14 +8,13 @@ class Order extends Model
 {
     protected $guarded = ['id'];
 
-    public function order_items()
-    {
-        return $this->hasMany(OrderItem::class);
-    }
-
     public static function generateOrderNumber(): string
     {
         return 'ORD-' . (string) Str::uuid();
     }
 
+    public function order_items()
+    {
+        return $this->hasMany(OrderItem::class);
+    }
 }
