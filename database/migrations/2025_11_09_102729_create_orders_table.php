@@ -18,6 +18,7 @@ return new class extends Migration
                 ->constrained('users')
                 ->onDelete('cascade');
 
+            $table->string('order_number')->unique();
             $table->text('address');
             $table->string('city')->nullable();
             $table->string('postal_code')->nullable();

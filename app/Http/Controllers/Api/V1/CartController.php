@@ -80,8 +80,8 @@ class CartController extends Controller
 
         // Default calculations — you can change this logic
         $item_price     = $product->price;
-        $shipping_price = $request->shipping_price ?? 50.00;
-        $tax_price      = 0;
+        $shipping_price = config('constants.shipping_fee', 50);
+        $tax_price      = config('constants.tax', 0);
         //$tax_price      = $request->tax_price ?? ($item_price * $quantity * 0.1); //10% tax
 
         $cartData = [
@@ -89,9 +89,9 @@ class CartController extends Controller
             'user_id'         => $request->user_id ?? null,
             'product_id'      => $product->id,
             'quantity'        => $quantity,
-            'item_price'      => $item_price,
             'shipping_price'  => $shipping_price,
             'tax_price'       => $tax_price,
+            'item_price'      => ($product->price * $quantity),
             'total_price'     => ($product->price * $quantity) + $shipping_price + $tax_price,
         ];
 
@@ -121,7 +121,8 @@ class CartController extends Controller
             $existing->quantity       = $quantity;
             $existing->tax_price      = $tax_price;
             $existing->shipping_price = $shipping_price;
-            $existing->total_price    = ($product->price * $quantity) + $shipping_price;
+            $existing->item_price     = ($product->price * $quantity);
+            $existing->total_price    = ($product->price * $quantity) + $shipping_price + $tax_price;
             $existing->save();
 
             return response()->json(['message' => 'Cart updated', 'cart' => $existing]);
@@ -160,11 +161,8 @@ class CartController extends Controller
             ->when(! $userId && $sessionId, fn($query) => $query->where('session_cart_id', $sessionId))
             ->firstOrFail();
 
-        // Update price fields
-        $shipping_price = $request->shipping_price ?? $cartItem->shipping_price ?? 50.00;
-
-        $cartItem->item_price     = $product->price;
-        $cartItem->shipping_price = $shipping_price;
+        $shipping_price = config('constants.shipping_fee', 50);
+        $tax_price      = config('constants.tax', 0);
 
         // Update quantity if sent, else keep existing
         $newQuantity = $request->quantity;
@@ -177,14 +175,20 @@ class CartController extends Controller
 
         $cartItem->quantity = $newQuantity;
 
+        // Update price fields
+        $cartItem->item_price = $shipping_price;
+        $cartItem->tax_price  = $tax_price;
+        $cartItem->item_price = ($product->price * $request->quantity);
+
         // Recalculate total price
-        $cartItem->total_price = ($product->price * $newQuantity) + $shipping_price;
+        $cartItem->total_price = ($product->price * $newQuantity) + $shipping_price + $tax_price;
 
         $cartItem->save();
 
         return response()->json($cartItem);
     }
 
+    //Login time user_id update
     public function updateUser(Request $request)
     {
         $request->validate([
