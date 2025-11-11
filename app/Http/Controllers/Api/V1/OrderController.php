@@ -9,6 +9,9 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Tymon\JWTAuth\Exceptions\TokenExpiredException;
+use Tymon\JWTAuth\Exceptions\TokenInvalidException;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class OrderController extends Controller
 {
@@ -110,11 +113,19 @@ class OrderController extends Controller
         }
     }
 
-    /**
-     * Show single order
-     */
-    public function show(Request $request, Order $order)
+    public function show(Request $request, $order_id)
     {
+        $order = Order::where('id', $order_id)
+            ->orWhere('order_number', $order_id)
+            ->first();
+
+        if (! $order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found',
+            ], 404);
+        }
+
         // Only owner can view
         if ($order->user_id !== $request->user()->id) {
             return response()->json([
@@ -125,7 +136,24 @@ class OrderController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => $order->load('items'),
+            'data'    => $order->load('items.product.images'),
         ]);
+    }
+
+    public function checkToken(Request $request)
+    {
+        try {
+            $user = JWTAuth::parseToken()->authenticate();
+            return response()->json([
+                'valid' => true,
+                'user'  => $user,
+            ]);
+        } catch (TokenExpiredException $e) {
+            return response()->json(['valid' => false, 'message' => 'Token expired'], 401);
+        } catch (TokenInvalidException $e) {
+            return response()->json(['valid' => false, 'message' => 'Token invalid'], 401);
+        } catch (\Exception $e) {
+            return response()->json(['valid' => false, 'message' => 'Token not provided'], 401);
+        }
     }
 }

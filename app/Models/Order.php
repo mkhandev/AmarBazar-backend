@@ -13,7 +13,7 @@ class Order extends Model
         return 'ORD-' . (string) Str::uuid();
     }
 
-    public function order_items()
+    public function items()
     {
         return $this->hasMany(OrderItem::class);
     }

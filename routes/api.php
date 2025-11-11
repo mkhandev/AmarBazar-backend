@@ -32,8 +32,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/user', [AuthController::class, 'loginUserDetails']);
 
         //order
-        Route::post('/order', [OrderController::class, 'store']);
         Route::get('/orders', [OrderController::class, 'index']);
-        Route::get('/orders/{order}', [OrderController::class, 'show']);
+        Route::get('/orders/{order_id}', [OrderController::class, 'show']);
+        Route::post('/orders', [OrderController::class, 'store']);
+
     });
+
+    Route::get('/check-token', [OrderController::class, 'checkToken']);
 });
