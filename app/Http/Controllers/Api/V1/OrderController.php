@@ -156,4 +156,25 @@ class OrderController extends Controller
             return response()->json(['valid' => false, 'message' => 'Token not provided'], 401);
         }
     }
+
+    public function updatePayment(Request $request, $order_id)
+    {
+        $order = Order::where('id', $order_id)->first();
+
+        if ($order->user_id !== $request->user()->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+            ], 403);
+        }
+
+        $order = Order::findOrFail($order_id);
+
+        $order->update([
+            'payment_status'    => $request->input('status', 'paid'),
+            'payment_intent_id' => $request->input('payment_intent_id'),
+        ]);
+
+        return response()->json(['success' => true]);
+    }
 }
