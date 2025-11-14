@@ -18,6 +18,7 @@ Route::prefix('v1')->group(function () {
 
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/register', [AuthController::class, 'register']);
 
     Route::get('/cart/{session_cart_id}', [CartController::class, 'show']);
     Route::post('/cart', [CartController::class, 'store']);
@@ -35,7 +36,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/{order_id}', [OrderController::class, 'show']);
         Route::post('/orders', [OrderController::class, 'store']);
-        Route::post('/orders/{order_id}/update-payment', [OrderController::class, 'updatePayment']);
+        Route::post('/orders/{order_id}/update-payment', [OrderController::class, 'updatePayment']);              //stripe webhooks
+        Route::post('/orders/{order_id}/order-to-paid', [OrderController::class, 'updateOrderToPaid']);           //admin will update order to paid
+        Route::post('/orders/{order_id}/order-to-delivered', [OrderController::class, 'updateOrderToDelivered']); //admin will update order to delivered
 
     });
 

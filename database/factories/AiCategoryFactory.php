@@ -78,7 +78,9 @@ class AiCategoryFactory extends Factory
 
     private function downloadUnsplashImage(string $category, int $width = 600, int $height = 400): string
     {
-        $accessKey = env('UNSPLASH_ACCESS_KEY');
+        //$accessKey = env('UNSPLASH_ACCESS_KEY');
+        //$accessKey = "kyzzqopmoIM7on2ZD2JIkao-P5OLMNWIP9eEGpEYbGs";
+        $accessKey = config('custom.unsplash_access_key');
 
         try {
             if (! $accessKey) {
@@ -112,7 +114,6 @@ class AiCategoryFactory extends Factory
 
             // Return publicly accessible URL
             return Storage::url($path);
-
         } catch (\Exception $e) {
             Log::error("Failed to download Unsplash image for category '{$category}': " . $e->getMessage());
             return '/images/default-category.jpg';
