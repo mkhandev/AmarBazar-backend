@@ -7,7 +7,6 @@ use App\Models\ProductImage;
 use App\Models\User;
 use Faker\Factory as Faker;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -38,29 +37,11 @@ class GenerateProducts extends Command
     {
         $categoryIndex = (int) $this->argument('categoryIndex');
         $productCount  = (int) $this->argument('product');
-        $accessKey     = env('UNSPLASH_ACCESS_KEY');
 
         // $categories = [
-        //     'Clothing'            => ['T-Shirt', 'Jeans', 'Jacket', 'Sweater', 'Shorts', 'Dress', 'Skirt', 'Hoodie', 'Socks', 'Hat', 'Blouse', 'Coat', 'Cardigan', 'Tank Top', 'Leggings', 'Scarf', 'Gloves', 'Belt', 'Shoes', 'Sneakers', 'Boots', 'Cap', 'Tie', 'Pajamas', 'Swimsuit'],
-        //     'Electronics'         => ['Laptop', 'Smartphone', 'Headphones', 'Monitor', 'Keyboard', 'Mouse', 'Tablet', 'Camera', 'Speaker', 'Charger', 'Router', 'USB Drive', 'Printer', 'Scanner', 'Smartwatch', 'VR Headset', 'Earbuds', 'Projector', 'Microphone', 'Hard Drive', 'Power Bank', 'Drone', 'Smart Home Hub', 'Game Console', 'Webcam'],
-        //     'Furniture'           => ['Desk', 'Chair', 'Table', 'Couch', 'Bed', 'Wardrobe', 'Shelf', 'Cabinet', 'Stool', 'Dresser', 'Nightstand', 'Bookshelf', 'Bench', 'Ottoman', 'Futon', 'Armchair', 'Side Table', 'Dining Table', 'Coffee Table', 'TV Stand', 'Chest', 'Cupboard', 'Hutch', 'Console Table', 'Drawer'],
-        //     'Accessories'         => ['Backpack', 'Watch', 'Wallet', 'Belt', 'Sunglasses', 'Necklace', 'Bracelet', 'Ring', 'Hat', 'Scarf', 'Gloves', 'Earrings', 'Tie', 'Cufflinks', 'Bag', 'Keychain', 'Cap', 'Hairband', 'Brooch', 'Socks', 'Shoes', 'Umbrella', 'Handkerchief', 'Wallet Chain', 'Lanyard'],
-        //     'Toys'                => ['Action Figure', 'Doll', 'Puzzle', 'Board Game', 'Lego Set', 'Plush Toy', 'Yo-Yo', 'RC Car', 'Building Blocks', 'Toy Train', 'Fidget Spinner', 'Stuffed Animal', 'Play-Doh', 'Water Gun', 'Kite', 'Card Game', 'Toy Soldier', 'Puzzle Cube', 'Rubber Duck', 'Marble Set', 'Mini Car', 'Toy Robot', 'Dart Board', 'Jump Rope', 'Scooter'],
-        //     'Beauty'              => ['Lipstick', 'Foundation', 'Eyeliner', 'Mascara', 'Perfume', 'Nail Polish', 'Moisturizer', 'Shampoo', 'Conditioner', 'Face Mask', 'Blush', 'Concealer', 'Hair Oil', 'Body Lotion', 'Sunscreen', 'Lip Balm', 'Hair Spray', 'Hair Straightener', 'Curling Iron', 'Toothpaste', 'Body Wash', 'Bath Bomb', 'Facial Cleanser', 'Eye Cream', 'Hand Cream'],
-        //     'Gadgets'             => ['Smartwatch', 'Fitness Tracker', 'Drone', 'VR Headset', 'Bluetooth Speaker', 'Power Bank', 'Earbuds', 'Camera', 'Projector', 'Smart Home Hub', 'Smart Glasses', 'Action Camera', 'Digital Pen', '3D Printer', 'E-Reader', 'Smart Thermostat', 'GPS Tracker', 'Portable Monitor', 'Wireless Charger', 'Webcam', 'Security Camera', 'Laser Pointer', 'Mini Projector', 'Robot Vacuum', 'Smart Lock'],
-        //     'Food'                => ['Chocolate', 'Cookies', 'Snack Pack', 'Cereal', 'Tea', 'Coffee', 'Pasta', 'Sauce', 'Candy', 'Juice', 'Bread', 'Rice', 'Cheese', 'Milk', 'Butter', 'Jam', 'Honey', 'Yogurt', 'Soda', 'Chips', 'Peanut Butter', 'Nuts', 'Oats', 'Soup', 'Ice Cream'],
-        //     'Sports'              => ['Football', 'Basketball', 'Tennis Racket', 'Cricket Bat', 'Golf Club', 'Yoga Mat', 'Dumbbells', 'Helmet', 'Running Shoes', 'Jersey', 'Gloves', 'Skates', 'Treadmill', 'Jump Rope', 'Cycling Shoes', 'Fitness Ball', 'Resistance Bands', 'Hockey Stick', 'Ping Pong Paddle', 'Soccer Ball', 'Water Bottle', 'Caps', 'Wristband', 'Knee Pads', 'Socks'],
-        //     'Stationery'          => ['Notebook', 'Pen', 'Pencil', 'Eraser', 'Marker', 'Highlighter', 'Stapler', 'Paper Clips', 'Scissors', 'Ruler', 'Glue Stick', 'Sticky Notes', 'Envelope', 'File Folder', 'Calculator', 'Binder', 'Sharpener', 'Notebook Set', 'Drawing Pad', 'Pen Holder', 'Sketchbook', 'Whiteboard', 'Clipboard', 'Stamp', 'Label'],
-        //     'Automotive'          => ['Car Tire', 'Car Battery', 'Engine Oil', 'Car Mat', 'Headlight', 'Brake Pad', 'Car Seat Cover', 'Windshield Wiper', 'Air Freshener', 'Car Cover', 'Steering Wheel Cover', 'Car Jack', 'Car Horn', 'Spark Plug', 'Fuel Filter', 'Car Light', 'Car Cleaner', 'Tire Inflator', 'Seat Belt', 'GPS Navigator', 'Car Charger', 'Tool Kit', 'Car Antenna', 'Mud Flap', 'Roof Rack'],
-        //     'Home Appliances'     => ['Refrigerator', 'Washing Machine', 'Microwave', 'Oven', 'Dishwasher', 'Toaster', 'Blender', 'Coffee Maker', 'Air Conditioner', 'Fan', 'Vacuum Cleaner', 'Water Heater', 'Rice Cooker', 'Juicer', 'Iron', 'Mixer', 'Food Processor', 'Heater', 'Electric Kettle', 'Grill', 'Air Purifier', 'Deep Fryer', 'Slow Cooker', 'Humidifier', 'Water Purifier'],
-        //     'Pet Supplies'        => ['Dog Food', 'Cat Food', 'Bird Seed', 'Pet Bed', 'Dog Leash', 'Cat Toy', 'Pet Bowl', 'Fish Tank', 'Pet Shampoo', 'Pet Collar', 'Dog Toy', 'Pet Carrier', 'Litter Box', 'Pet Treats', 'Aquarium Filter', 'Pet Brush', 'Pet Clothes', 'Pet Cage', 'Pet Bowl Stand', 'Pet Vitamins', 'Bird Cage', 'Pet Nail Clippers', 'Dog House', 'Pet Carrier Bag', 'Pet Fence'],
-        //     'Books'               => ['Novel', 'Science Book', 'Math Book', 'History Book', 'Biography', 'Comic Book', 'Magazine', 'Dictionary', 'Cookbook', 'Travel Guide', 'Poetry', 'Thriller', 'Mystery', 'Fantasy', 'Self Help', 'Romance', 'Science Fiction', 'Children Book', 'Graphic Novel', 'Textbook', 'Encyclopedia', 'Art Book', 'Photography Book', 'Journal', 'Planner'],
-        //     'Musical Instruments' => ['Guitar', 'Piano', 'Violin', 'Drum', 'Flute', 'Saxophone', 'Trumpet', 'Harmonica', 'Keyboard', 'Cello', 'Tambourine', 'Banjo', 'Ukulele', 'Accordion', 'Clarinet', 'Electric Guitar', 'Bass Guitar', 'Drum Kit', 'Maracas', 'Triangle', 'Oboe', 'Trombone', 'Xylophone', 'Synthesizer', 'Recorder'],
-        //     'Health'              => ['Vitamins', 'Pain Reliever', 'Cough Syrup', 'Bandage', 'Thermometer', 'First Aid Kit', 'Hand Sanitizer', 'Antibiotic Cream', 'Glucose Meter', 'Blood Pressure Monitor', 'Inhaler', 'Eye Drops', 'Supplements', 'Protein Powder', 'Face Mask', 'Sanitary Napkin', 'Toothbrush', 'Toothpaste', 'Floss', 'Mouthwash', 'Shampoo', 'Conditioner', 'Moisturizer', 'Sunscreen', 'Hand Cream'],
-        //     'Jewelry'             => ['Necklace', 'Ring', 'Bracelet', 'Earrings', 'Watch', 'Pendant', 'Brooch', 'Cufflinks', 'Anklet', 'Bangle', 'Charm', 'Tiara', 'Hairpin', 'Chain', 'Choker', 'Locket', 'Wedding Ring', 'Engagement Ring', 'Pearl Necklace', 'Gemstone Ring', 'Bracelet Set', 'Ring Set', 'Earring Set', 'Gold Ring', 'Silver Ring'],
-        //     'Garden'              => ['Lawn Mower', 'Garden Hose', 'Shovel', 'Rake', 'Pruner', 'Wheelbarrow', 'Gloves', 'Planter', 'Seeds', 'Fertilizer', 'Garden Soil', 'Watering Can', 'Garden Light', 'Sprinkler', 'Garden Bench', 'Hedge Trimmer', 'Garden Scissors', 'Compost Bin', 'Garden Net', 'Trellis', 'Garden Table', 'Garden Chair', 'Garden Statue', 'Plant Pot', 'Bird Feeder'],
-        //     'Office Supplies'     => ['Chair', 'Desk', 'Lamp', 'File Cabinet', 'Stapler', 'Printer', 'Paper', 'Pen', 'Marker', 'Whiteboard', 'Notebook', 'Binder', 'Envelope', 'Tape', 'Calculator', 'Scissors', 'Folder', 'Desk Organizer', 'Paperweight', 'Label Maker', 'Clock', 'Trash Can', 'Bulletin Board', 'Bookstand', 'Stamp'],
-        //     'Footwear'            => ['Sneakers', 'Running Shoes', 'Formal Shoes', 'Loafers', 'Sandals', 'Flip Flops', 'Slippers', 'Boots', 'Ankle Boots', 'High Heels', 'Wedges', 'Ballet Flats', 'Espadrilles', 'Clogs', 'Moccasins', 'Derby Shoes', 'Oxfords', 'Hiking Boots', 'Work Boots', 'Rain Boots', 'Soccer Cleats', 'Basketball Shoes', 'Tennis Shoes', 'Slides', 'Casual Shoes'],
+        //     'Clothing'    => ['T-Shirt', 'Jeans'],
+        //     'Electronics' => ['Laptop', 'Smartphone'],
+        //     'Furniture'   => ['Desk', 'Chair', 'Table'],
         // ];
 
         $categories = [
@@ -148,7 +129,7 @@ class GenerateProducts extends Command
                 '2-Slice Toaster', 'High-Speed Blender', 'Coffee Maker Machine', 'Split Air Conditioner 1.5 Ton', 'Table Fan 16-inch',
                 'Bagless Vacuum Cleaner', 'Electric Water Heater 10L', 'Rice Cooker 1.8L', 'Juicer Extractor', 'Clothes Iron',
                 'Food Processor 3-in-1', 'Ceramic Heater', 'Electric Kettle 1.7L', 'Indoor Grill', 'Air Purifier HEPA',
-                'Slow Cooker 6L', 'Humidifier Ultrasonic', 'Deep Fryer 3L', 'Sandwich Maker', 'Electric Pressure Cooker',
+                'Slow Cooker 6L', 'Humidifier Ultrasonic', 'TV Remote Controllers', 'Sandwich Maker', 'Electric Pressure Cooker',
             ],
             'Pet Supplies'        => [
                 'Premium Dog Food 5kg', 'Cat Food Pack 2kg', 'Bird Seed Mix', 'Orthopedic Pet Bed', 'Retractable Dog Leash',
@@ -158,7 +139,7 @@ class GenerateProducts extends Command
                 'Bird Cage with Stand', 'Pet Nail Clippers', 'Wooden Dog House', 'Pet Carrier Bag', 'Portable Pet Fence',
             ],
             'Books'               => [
-                'Bestselling Novel', 'Physics Science Book', 'Advanced Math Textbook', 'World History Book', 'Famous Biography',
+                'Bestselling Novel', 'Physics Science Book', 'Advanced Math Textbook', 'World History Book', 'English Literature',
                 'Marvel Comic Book', 'Monthly Magazine Issue', 'English Dictionary', 'Italian Cookbook', 'Travel Guide to Europe',
                 'Poetry Collection', 'Suspense Thriller Novel', 'Mystery Detective Book', 'Fantasy Adventure Novel', 'Self-Help Guide',
                 'Romance Story Book', 'Science Fiction Saga', 'Children Picture Book', 'Graphic Novel Series', 'Encyclopedia Set',
@@ -227,7 +208,7 @@ class GenerateProducts extends Command
 
         foreach ($generateProduct as $productName) {
 
-            DB::beginTransaction();
+            //DB::beginTransaction();
 
             $exists = Product::where('name', $productName)
                 ->where('category_id', $categoryId)
@@ -249,6 +230,14 @@ class GenerateProducts extends Command
                     $counter++;
                 }
 
+                $imageUrls = $this->getUnsplashImages($productName, mt_rand(3, 7));
+
+                if (empty($imageUrls)) {
+                    $this->warn("Skipped (no images found): {$productName}");
+                    //DB::rollBack();
+                    continue;
+                }
+
                 $productModel = Product::create([
                     'name'        => $productName,
                     'slug'        => $slug,
@@ -263,19 +252,7 @@ class GenerateProducts extends Command
                     'status'      => true,
                 ]);
 
-                $productId = $productModel->id;
-                $imageUrls = $this->getUnsplashImages($productModel->name, mt_rand(3, 7));
-
-                if (empty($imageUrls)) {
-                    throw new \Exception("No images found for {$productModel->name}");
-                }
-
-                // print_r($imageUrls);
-                // exit;
-
-                $main            = 0;
-                $productImages   = [];
-                $downloadedFiles = [];
+                $productImages = [];
 
                 foreach ($imageUrls as $index => $url) {
                     $response = Http::get($url);
@@ -302,28 +279,25 @@ class GenerateProducts extends Command
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];
-
-                    $downloadedFiles[] = $path;
                 }
 
                 ProductImage::insert($productImages);
 
-                DB::commit();
+                //DB::commit();
                 $this->info("Product added: {$productModel->name}");
 
             } catch (\Exception $e) {
-                DB::rollBack();
+                //DB::rollBack();
                 Log::error("Product skipped: {$productName} - " . $e->getMessage());
                 $this->error("Skipped category: {$categoryId} product: {$productName}");
             }
         }
-
-        //print_r($generateProduct);
     }
 
     private function getUnsplashImages(string $query, int $count = 5, int $width = 600, int $height = 400): array
     {
-        $accessKey = env('UNSPLASH_ACCESS_KEY');
+        $accessKey = config('custom.unsplash_access_key');
+
         $imageUrls = [];
 
         try {

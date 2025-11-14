@@ -20,13 +20,19 @@ class OrderController extends Controller
      */
     public function index(Request $request)
     {
-        $orders = Order::where('user_id', $request->user()->id)
-            ->with('items')
-            ->latest()
-            ->paginate(10);
+        $query = Order::with('items.product.images');
+
+        $user = Auth::user();
+
+        if ($user->role == 'user') {
+            $query = $query->where('user_id', $user->id);
+        }
+
+        $orders = $query->latest()->paginate(30);
 
         return response()->json([
             'success' => true,
+            'message' => 'User order List',
             'data'    => $orders,
         ]);
     }
@@ -127,12 +133,12 @@ class OrderController extends Controller
         }
 
         // Only owner can view
-        if ($order->user_id !== $request->user()->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized',
-            ], 403);
-        }
+        // if ($order->user_id !== $request->user()->id) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'Unauthorized',
+        //     ], 403);
+        // }
 
         return response()->json([
             'success' => true,
@@ -168,13 +174,59 @@ class OrderController extends Controller
             ], 403);
         }
 
-        $order = Order::findOrFail($order_id);
-
         $order->update([
             'payment_status'    => $request->input('status', 'paid'),
             'payment_intent_id' => $request->input('payment_intent_id'),
         ]);
 
         return response()->json(['success' => true]);
+    }
+
+    public function updateOrderToPaid(Request $request, $order_id)
+    {
+        $user = Auth::user();
+
+        if ($user->role != 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not admin',
+            ], 403);
+        }
+
+        $order = Order::where('id', $order_id)->first();
+
+        $order->update([
+            'payment_status' => 'paid',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order successfully mark as paid',
+            'data'    => $order,
+        ]);
+    }
+
+    public function updateOrderToDelivered(Request $request, $order_id)
+    {
+        $user = Auth::user();
+
+        if ($user->role != 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not admin',
+            ], 403);
+        }
+
+        $order = Order::where('id', $order_id)->first();
+
+        $order->update([
+            'status' => 'completed',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order successfully mark as delivered',
+            'data'    => $order,
+        ]);
     }
 }
