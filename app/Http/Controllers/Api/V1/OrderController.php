@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,7 +29,22 @@ class OrderController extends Controller
             $query = $query->where('user_id', $user->id);
         }
 
-        $orders = $query->latest()->paginate(30);
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where('order_number', 'LIKE', "%{$search}%");
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('payment_status')) {
+            $query->where('payment_status', $request->payment_status);
+        }
+
+        $query = $query->orderBy('id', 'desc');
+
+        $orders = $query->paginate(30);
 
         return response()->json([
             'success' => true,
@@ -227,6 +243,49 @@ class OrderController extends Controller
             'success' => true,
             'message' => 'Order successfully mark as delivered',
             'data'    => $order,
+        ]);
+    }
+
+    public function orderSummery()
+    {
+        $user = Auth::user();
+
+        if ($user->role != 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not admin',
+            ], 403);
+        }
+
+        $grand_total    = Order::where('payment_status', 'paid')->sum('grand_total');
+        $total_sales    = Order::count();
+        $total_users    = User::where('role', 'user')->count();
+        $products_count = Product::where('status', 1)->count();
+
+        $latest_sales = Order::with(['user:id,name'])
+        //->where('payment_status', 'paid')
+            ->select('id', 'order_number', 'user_id', 'grand_total', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->take(6)
+            ->get();
+
+        $salesData = Order::selectRaw("DATE_FORMAT(created_at, '%m/%y') as month, SUM(grand_total) as total_sales")
+        //->where('payment_status', 'paid')
+            ->groupBy('month')
+            ->orderByRaw("MIN(created_at)")
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Overview data',
+            'data'    => [
+                'grand_total'    => $grand_total,
+                'total_sales'    => $total_sales,
+                'total_users'    => $total_users,
+                'products_count' => $products_count,
+                'latest_sales'   => $latest_sales,
+                'sales_data'     => $salesData,
+            ],
         ]);
     }
 }

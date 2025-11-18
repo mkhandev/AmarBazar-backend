@@ -40,6 +40,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/orders/{order_id}/order-to-paid', [OrderController::class, 'updateOrderToPaid']);           //admin will update order to paid
         Route::post('/orders/{order_id}/order-to-delivered', [OrderController::class, 'updateOrderToDelivered']); //admin will update order to delivered
 
+        Route::get('/orders-summery', [OrderController::class, 'orderSummery']); //Admin dashboard overview
     });
 
     Route::get('/check-token', [OrderController::class, 'checkToken']);
