@@ -76,6 +76,10 @@ class ProductController extends Controller
             $query->orderBy('id', 'desc');
         }
 
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
         $products = $query->paginate(15);
 
         return response()->json($products);
