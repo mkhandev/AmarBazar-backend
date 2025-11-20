@@ -188,4 +188,52 @@ class ProductController extends Controller
         return response()->json($response);
     }
 
+    public function addProduct(Request $request)
+    {
+        $request->validate([
+            'name'             => 'required|string|min:3',
+            'category'         => 'required|integer',
+            'brand'            => 'required|string|min:3',
+            'price'            => 'required|numeric|min:0.01',
+            'stock'            => 'required|integer|min:0',
+            'description'      => 'required|string|min:3',
+            'images.*'         => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'main_image_index' => 'nullable|integer',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+
+            $product = Product::create($request->only([
+                'name', 'category', 'brand', 'price', 'stock', 'description',
+            ]));
+
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $index => $image) {
+                    $path = $image->store('products', 'public');
+
+                    $product->images()->create([
+                        'image'   => $path,
+                        'is_main' => $index == $request->main_image_index,
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'product' => $product->load('images'),
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack(); // Undo any DB changes if something fails
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
 }
