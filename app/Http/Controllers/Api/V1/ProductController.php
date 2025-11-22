@@ -2,18 +2,18 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\StoreProductRequest;
-use App\Http\Requests\Api\UpdateProductRequest;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Product::with(['category', 'user', 'images', 'reviews']);
+        $query = Product::with(['category:id,name', 'user:id,name', 'images', 'reviews']);
         //$query = Product::query();
 
         if ($request->filled('category') && $request->category != 'all') {
@@ -76,7 +76,7 @@ class ProductController extends Controller
             $query->orderBy('id', 'desc');
         }
 
-        if ($request->filled('status')) {
+        if ($request->filled('status') && $request->status != 'all') {
             $query->where('status', $request->status);
         }
 
@@ -107,75 +107,40 @@ class ProductController extends Controller
         return response()->json($response);
     }
 
-    public function store(StoreProductRequest $request): JsonResponse
-    {
-        DB::beginTransaction();
-
-        try {
-            $product = Product::create($request->validated());
-
-            // handle multiple images
-            if ($request->filled('images')) {
-                foreach ($request->images as $img) {
-                    $product->images()->create([
-                        'image'   => $img['image'],
-                        'is_main' => $img['is_main'] ?? false,
-                    ]);
-                }
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Product created successfully',
-                'data'    => $product->load('images'),
-            ], 201);
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
-    }
-
-    public function update(UpdateProductRequest $request, Product $product): JsonResponse
-    {
-        DB::beginTransaction();
-
-        try {
-            $product->update($request->validated());
-
-            if ($request->filled('images')) {
-                // delete old images and replace
-                $product->images()->delete();
-
-                foreach ($request->images as $img) {
-                    $product->images()->create([
-                        'image'   => $img['image'],
-                        'is_main' => $img['is_main'] ?? false,
-                    ]);
-                }
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Product updated successfully',
-                'data'    => $product->load('images'),
-            ]);
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json(['error' => $e->getMessage()], 500);
-        }
-    }
-
     public function destroy(Product $product): JsonResponse
     {
-        $product->delete();
+        DB::beginTransaction();
 
-        return response()->json([
-            'message' => 'Product deleted successfully',
-        ]);
+        try {
+
+            // Delete all product images from storage
+            foreach ($product->images as $image) {
+                $url      = $image->image;
+                $path     = parse_url($url, PHP_URL_PATH);
+                $filePath = str_replace('/storage/', '', $path);
+
+                Storage::disk('public')->delete($filePath);
+                $image->delete();
+            }
+
+            // Delete the product
+            $product->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Product deleted successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function authCheck()
@@ -188,15 +153,37 @@ class ProductController extends Controller
         return response()->json($response);
     }
 
+    public function productDetails($id): JsonResponse
+    {
+        $product = Product::with(['category:id,name', 'images:id,product_id,image,is_main'])
+            ->where('id', $id)
+            ->first();
+
+        if (! $product) {
+            return response()->json([
+                'message' => 'Product not found',
+            ], 404);
+        }
+
+        $response = [
+            'success' => true,
+            'message' => "Product details",
+            'data'    => $product,
+        ];
+
+        return response()->json($response);
+    }
+
     public function addProduct(Request $request)
     {
         $request->validate([
             'name'             => 'required|string|min:3',
-            'category'         => 'required|integer',
+            'category_id'      => 'required|integer|exists:categories,id',
             'brand'            => 'required|string|min:3',
             'price'            => 'required|numeric|min:0.01',
             'stock'            => 'required|integer|min:0',
             'description'      => 'required|string|min:3',
+            'status'           => 'required|integer|in:0,1',
             'images.*'         => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
             'main_image_index' => 'nullable|integer',
         ]);
@@ -205,16 +192,26 @@ class ProductController extends Controller
 
         try {
 
-            $product = Product::create($request->only([
-                'name', 'category', 'brand', 'price', 'stock', 'description',
-            ]));
+            $user = Auth::user();
+
+            $product = Product::create([
+                'name'        => $request->name,
+                'category_id' => $request->category_id,
+                'brand'       => $request->brand,
+                'price'       => $request->price,
+                'stock'       => $request->stock,
+                'description' => $request->description,
+                'status'      => $request->status,
+                'user_id'     => $user->id,
+            ]);
 
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $index => $image) {
-                    $path = $image->store('products', 'public');
+                    $path     = $image->store('products', 'public');
+                    $imageUrl = Storage::url($path);
 
                     $product->images()->create([
-                        'image'   => $path,
+                        'image'   => $imageUrl,
                         'is_main' => $index == $request->main_image_index,
                     ]);
                 }
@@ -229,6 +226,121 @@ class ProductController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack(); // Undo any DB changes if something fails
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function updateProduct(Request $request, $id)
+    {
+        $request->validate([
+            'name'               => 'required|string|min:3',
+            'category_id'        => 'required|integer|exists:categories,id',
+            'brand'              => 'required|string|min:3',
+            'price'              => 'required|numeric|min:0.01',
+            'stock'              => 'required|integer|min:0',
+            'description'        => 'required|string|min:3',
+            'status'             => 'required|integer|in:0,1',
+
+            // new images
+            'images.*'           => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+
+            // client will send only IDs to delete
+            'remove_image_ids'   => 'array',
+            'remove_image_ids.*' => 'integer|exists:product_images,id',
+
+            // id of main image OR index for newly uploaded images
+            'main_image_index'   => 'nullable|integer',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+
+            $product = Product::with('images')->findOrFail($id);
+
+            // Update product basic fields
+            $product->update([
+                'name'        => $request->name,
+                'category_id' => $request->category_id,
+                'brand'       => $request->brand,
+                'price'       => $request->price,
+                'stock'       => $request->stock,
+                'description' => $request->description,
+                'status'      => $request->status,
+            ]);
+
+            /** -------------------------------------------
+             *  REMOVE SELECTED IMAGES
+             * --------------------------------------------*/
+            if ($request->remove_image_ids) {
+                foreach ($request->remove_image_ids as $imgId) {
+                    $image = $product->images->where('id', $imgId)->first();
+                    if ($image) {
+                        // delete file
+                        $filePath = str_replace('/storage/', '', $image->image);
+                        Storage::disk('public')->delete($filePath);
+
+                        $image->delete();
+                    }
+                }
+            }
+
+            /** -------------------------------------------
+             *  ADD NEW IMAGES
+             * --------------------------------------------*/
+            $newImageIds = [];
+
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $index => $imageFile) {
+                    $path     = $imageFile->store('products', 'public');
+                    $imageUrl = Storage::url($path);
+
+                    $img = $product->images()->create([
+                        'image'   => $imageUrl,
+                        'is_main' => false,
+                    ]);
+
+                    $newImageIds[$index] = $img->id;
+                }
+            }
+
+            /** -------------------------------------------
+             *  UPDATE MAIN IMAGE
+             * --------------------------------------------*/
+            if ($request->filled('main_image_index')) {
+                // remove old main images
+                $product->images()->update(['is_main' => false]);
+
+                $mainIndex = (int) $request->main_image_index;
+
+                $existingImages = $product->images()->pluck('id')->toArray();
+                $totalExisting  = count($existingImages);
+
+                if ($mainIndex < $totalExisting) {
+                    // existing image
+                    $product->images()->where('id', $existingImages[$mainIndex])->update(['is_main' => true]);
+                } else {
+                    // new image
+                    $newIndex = $mainIndex - $totalExisting;
+                    if (isset($newImageIds[$newIndex])) {
+                        $product->images()->where('id', $newImageIds[$newIndex])->update(['is_main' => true]);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                "message" => "Successfully update product",
+                'data'    => $product->load('images'),
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),

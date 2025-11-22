@@ -42,7 +42,9 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/orders-summery', [OrderController::class, 'orderSummery']); //Admin dashboard overview
 
-        Route::get('/add-product', [ProductController::class, 'addProduct']);
+        Route::get('/product-details/{id}', [ProductController::class, 'productDetails']);
+        Route::post('/add-product', [ProductController::class, 'addProduct']);
+        Route::patch('/update-product/{id}', [ProductController::class, 'updateProduct']);
     });
 
     Route::get('/check-token', [OrderController::class, 'checkToken']);
