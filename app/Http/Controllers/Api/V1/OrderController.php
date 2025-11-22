@@ -34,12 +34,20 @@ class OrderController extends Controller
             $query->where('order_number', 'LIKE', "%{$search}%");
         }
 
+        if ($request->filled('order_number')) {
+            $query->where('order_number', $request->order_number);
+        }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
         if ($request->filled('payment_status')) {
             $query->where('payment_status', $request->payment_status);
+        }
+
+        if ($request->filled('payment_method')) {
+            $query->where('payment_method', $request->payment_method);
         }
 
         $query = $query->orderBy('id', 'desc');
