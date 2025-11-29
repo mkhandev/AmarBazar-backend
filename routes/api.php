@@ -36,7 +36,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/orders', [OrderController::class, 'index']);
         Route::get('/orders/{order_id}', [OrderController::class, 'show']);
         Route::post('/orders', [OrderController::class, 'store']);
-        Route::post('/orders/{order_id}/update-payment', [OrderController::class, 'updatePayment']);              //stripe webhooks
+
         Route::post('/orders/{order_id}/order-to-paid', [OrderController::class, 'updateOrderToPaid']);           //admin will update order to paid
         Route::post('/orders/{order_id}/order-to-delivered', [OrderController::class, 'updateOrderToDelivered']); //admin will update order to delivered
 
@@ -47,5 +47,6 @@ Route::prefix('v1')->group(function () {
         Route::patch('/update-product/{id}', [ProductController::class, 'updateProduct']);
     });
 
+    Route::post('/orders/{order_id}/update-payment', [OrderController::class, 'updatePayment']); //stripe webhooks
     Route::get('/check-token', [OrderController::class, 'checkToken']);
 });
