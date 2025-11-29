@@ -189,9 +189,14 @@ class OrderController extends Controller
 
     public function updatePayment(Request $request, $order_id)
     {
-        $order = Order::where('id', $order_id)->first();
+        $token = $request->header('Authorization');
+        if ($token !== 'Bearer ' . env('MANUAL_MATCH_STRIPE_PAYMENT_SECRET')) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
 
-        if ($order->user_id !== $request->user()->id) {
+        $order = Order::findOrFail($order_id);
+
+        if ($order->user_id !== $request->user_id) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized',
@@ -199,8 +204,8 @@ class OrderController extends Controller
         }
 
         $order->update([
-            'payment_status'    => $request->input('status', 'paid'),
-            'payment_intent_id' => $request->input('payment_intent_id'),
+            'payment_status'    => $request->status,
+            'payment_intent_id' => $request->payment_intent_id,
         ]);
 
         return response()->json(['success' => true]);
