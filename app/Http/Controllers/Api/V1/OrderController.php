@@ -190,16 +190,18 @@ class OrderController extends Controller
 
     public function updatePayment(Request $request, $order_id)
     {
-        $token = $request->header('Authorization');
+        $token = $request->header('Authorization', '');
+        $token = str_replace('Bearer ', '', $token);
 
         Log::info('Stripe payment webhooks called', [
-            'order_id' => $order_id,
-            'user_id'  => $request->user_id ?? null,
-            'token'    => $token,
-            'status'   => $request->status ?? null,
+            'order_id'  => $order_id,
+            'user_id'   => $request->user_id ?? null,
+            'raw_token' => $request->header('Authorization'),
+            'token'     => $token,
+            'status'    => $request->status ?? null,
         ]);
 
-        if ($token !== 'Bearer ' . env('MANUAL_MATCH_STRIPE_PAYMENT_SECRET')) {
+        if ($token !== env('MANUAL_MATCH_STRIPE_PAYMENT_SECRET')) {
             Log::warning('Webhooks token not match', [
                 'order_id' => $order_id,
                 'token'    => $token,
