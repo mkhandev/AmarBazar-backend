@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -190,13 +191,29 @@ class OrderController extends Controller
     public function updatePayment(Request $request, $order_id)
     {
         $token = $request->header('Authorization');
+
+        Log::info('Stripe payment webhooks called', [
+            'order_id' => $order_id,
+            'user_id'  => $request->user_id ?? null,
+            'token'    => $token,
+            'status'   => $request->status ?? null,
+        ]);
+
         if ($token !== 'Bearer ' . env('MANUAL_MATCH_STRIPE_PAYMENT_SECRET')) {
+            Log::warning('Webhooks token not match', [
+                'order_id' => $order_id,
+                'token'    => $token,
+            ]);
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
         $order = Order::findOrFail($order_id);
 
         if ($order->user_id !== $request->user_id) {
+            Log::warning('Webhooks user not match', [
+                'order_user_id'   => $order->user_id,
+                'request_user_id' => $request->user_id,
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized',
@@ -204,6 +221,12 @@ class OrderController extends Controller
         }
 
         $order->update([
+            'payment_status'    => $request->status,
+            'payment_intent_id' => $request->payment_intent_id,
+        ]);
+
+        Log::info('Payment updated successfully', [
+            'order_id'          => $order_id,
             'payment_status'    => $request->status,
             'payment_intent_id' => $request->payment_intent_id,
         ]);
