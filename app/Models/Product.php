@@ -41,6 +41,19 @@ class Product extends Model
         return "{$originalSlug}-{$i}";
     }
 
+    /**
+     * Update product rating and number of reviews
+     */
+    public function updateRating(): void
+    {
+        $approvedReviews = $this->reviews()->where('is_approved', true);
+
+        $this->num_reviews = $approvedReviews->count();
+        $this->rating      = $approvedReviews->avg('rating') ?? 0;
+
+        $this->save();
+    }
+
     public function category()
     {
         return $this->belongsTo(Category::class);
