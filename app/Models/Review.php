@@ -10,6 +10,22 @@ class Review extends Model
 
     protected $guarded = ['id'];
 
+    // Automatically update product rating whenever a review is created/updated/deleted
+    protected static function booted()
+    {
+        static::created(function ($review) {
+            $review->product->updateRating();
+        });
+
+        static::updated(function ($review) {
+            $review->product->updateRating();
+        });
+
+        static::deleted(function ($review) {
+            $review->product->updateRating();
+        });
+    }
+
     public function product()
     {
         return $this->belongsTo(Product::class);
